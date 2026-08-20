@@ -127,7 +127,7 @@ TranslationManager::TranslationManager() = default;
 
 void TranslationManager::initialize() {
     QSettings settings;
-    language_ = settings.value(QStringLiteral("ui/language"), QStringLiteral("zh_CN")).toString();
+    language_ = settings.value(QStringLiteral("ui/language"), QStringLiteral("en")).toString();
     qApp->installEventFilter(this);
 }
 

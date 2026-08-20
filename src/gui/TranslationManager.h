@@ -30,7 +30,7 @@ private:
     TranslationManager();
     void translateObject(QObject* object);
     void translateAction(QAction* action);
-    QString language_ = QStringLiteral("zh_CN");
+    QString language_ = QStringLiteral("en");
 };
 
 } // namespace prs
