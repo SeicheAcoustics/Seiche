@@ -5,6 +5,7 @@
 #include "AssetsPanel.h"
 #include "BottomToolbar.h"
 #include "IconUtils.h"
+#include "TranslationManager.h"
 #include "acoustics/AcousticSimulator.h"
 #include "acoustics/SimulationWorker.h"
 #include "acoustics/SimulationQueue.h"
@@ -18,6 +19,7 @@
 #include "dialogs/RenderOptionsDialog.h"
 
 #include <QMenuBar>
+#include <QActionGroup>
 #include <QToolBar>
 #include <QSplitter>
 #include <QVBoxLayout>
@@ -183,6 +185,25 @@ void MainWindow::setupMenus() {
     actKeyboardShortcuts_ = settingsMenu_->addAction("&Keyboard Shortcuts...", this, [this]() {
         KeyboardShortcutsDialog dlg(this);
         dlg.exec();
+    });
+
+    settingsMenu_->addSeparator();
+    auto* languageMenu = settingsMenu_->addMenu("Language");
+    auto* englishAction = languageMenu->addAction("English");
+    auto* chineseAction = languageMenu->addAction("Simplified Chinese");
+    englishAction->setCheckable(true);
+    chineseAction->setCheckable(true);
+    auto* languageGroup = new QActionGroup(this);
+    languageGroup->setExclusive(true);
+    languageGroup->addAction(englishAction);
+    languageGroup->addAction(chineseAction);
+    englishAction->setChecked(!TranslationManager::instance().isChinese());
+    chineseAction->setChecked(TranslationManager::instance().isChinese());
+    connect(englishAction, &QAction::triggered, this, []() {
+        TranslationManager::instance().setLanguage(QStringLiteral("en"));
+    });
+    connect(chineseAction, &QAction::triggered, this, []() {
+        TranslationManager::instance().setLanguage(QStringLiteral("zh_CN"));
     });
 }
 
