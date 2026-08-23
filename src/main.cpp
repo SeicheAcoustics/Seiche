@@ -1,5 +1,6 @@
 #include "gui/MainWindow.h"
 #include "gui/IconUtils.h"
+#include "gui/TranslationManager.h"
 
 #include <QApplication>
 #include <QSurfaceFormat>
@@ -39,8 +40,11 @@ int main(int argc, char* argv[]) {
     format.setProfile(QSurfaceFormat::CompatibilityProfile);
     QSurfaceFormat::setDefaultFormat(format);
 
+    prs::TranslationManager::instance().initialize();
+
     prs::MainWindow window;
     window.show();
+    prs::TranslationManager::instance().translateApplication();
 
     return app.exec();
 }

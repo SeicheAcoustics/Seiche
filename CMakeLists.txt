@@ -107,6 +107,7 @@ set(SOURCES
     src/gui/AssetsPanel.cpp
     src/gui/BottomToolbar.cpp
     src/gui/IconUtils.cpp
+    src/gui/TranslationManager.cpp
     src/gui/SimulationQueueWindow.cpp
     src/gui/UndoCommands.cpp
     src/gui/SimulationQueuePanel.cpp
@@ -165,6 +166,7 @@ set(HEADERS
     src/gui/AssetsPanel.h
     src/gui/BottomToolbar.h
     src/gui/IconUtils.h
+    src/gui/TranslationManager.h
     src/gui/UndoCommands.h
     src/gui/SimulationQueuePanel.h
     src/gui/SimulationQueueWindow.h

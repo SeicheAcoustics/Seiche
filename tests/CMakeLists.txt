@@ -70,6 +70,8 @@ set(GUI_TEST_EXTRA
     ${CMAKE_SOURCE_DIR}/src/gui/AssetsPanel.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/BottomToolbar.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/IconUtils.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/TranslationManager.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/TranslationManager.h
     ${CMAKE_SOURCE_DIR}/src/gui/UndoCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/dialogs/SettingsDialogs.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/dialogs/AudioComparisonDialog.cpp
