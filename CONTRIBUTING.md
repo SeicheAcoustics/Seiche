@@ -2,7 +2,7 @@
 
 We are always accepting external contributions! We're looking for users who are interested in contributing code (GUI and app functionality) and/or material coefficients (for a public database).
 
-Additionally, this project wouldn't be possible without [PyRoomAcoustics](https://github.com/LCAV/pyroomacoustics), which we use for performing acoustic simulations.
+Additionally, this project wouldn't be possible without the inspiration from and early collaboration with [PyRoomAcoustics](https://github.com/LCAV/pyroomacoustics), 
 We highly suggest supporting PRA and contributing to them as well!
 
 <p align="center">
