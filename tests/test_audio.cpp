@@ -30,6 +30,59 @@ private slots:
         QVERIFY(loaded.samples().size() == 1000);
     }
 
+    void testLoadStreamedWav() {
+        AudioFile af;
+        af.samples().assign(1000, 0.25f);
+
+        QTemporaryFile tmp;
+        tmp.setFileTemplate(QDir::tempPath() + "/testXXXXXX.wav");
+        QVERIFY(tmp.open());
+        QString path = tmp.fileName();
+        tmp.close();
+        QVERIFY(af.save(path, 44100));
+
+        // Streamed writers leave the RIFF and data sizes as 0xFFFFFFFF
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadWrite));
+        const char unknown[4] = {'\xff', '\xff', '\xff', '\xff'};
+        f.seek(4);  f.write(unknown, 4);
+        f.seek(40); f.write(unknown, 4);
+        f.close();
+
+        AudioFile loaded;
+        QVERIFY(loaded.load(path));
+        QCOMPARE(loaded.samples().size(), size_t(1000));
+    }
+
+    void testLoadDecodesViaQt() {
+        // 24-bit PCM: rejected by the built-in WAV parser, so this exercises the QAudioDecoder path
+        const int frames = 480;
+        QByteArray wav;
+        QDataStream out(&wav, QIODevice::WriteOnly);
+        out.setByteOrder(QDataStream::LittleEndian);
+        out.writeRawData("RIFF", 4); out << quint32(36 + frames * 3);
+        out.writeRawData("WAVEfmt ", 8); out << quint32(16) << quint16(1) << quint16(1)
+            << quint32(48000) << quint32(48000 * 3) << quint16(3) << quint16(24);
+        out.writeRawData("data", 4); out << quint32(frames * 3);
+        for (int i = 0; i < frames; ++i) out << quint8(0) << quint8(0) << quint8(0x40);  // +0.5
+
+        QTemporaryFile tmp(QDir::tempPath() + "/testXXXXXX.wav");
+        QVERIFY(tmp.open());
+        tmp.write(wav);
+        tmp.close();
+
+        AudioFile loaded;
+        QVERIFY(loaded.load(tmp.fileName()));
+        QCOMPARE(loaded.sampleRate(), 48000);
+        QCOMPARE(loaded.samples().size(), size_t(frames));
+        QVERIFY(std::abs(loaded.samples()[frames / 2] - 0.5f) < 1e-3f);
+    }
+
+    void testLoadMissingFileFails() {
+        AudioFile af;
+        QVERIFY(!af.load(QDir::tempPath() + "/does_not_exist_seiche.mp3"));
+    }
+
     void testMonoConversion() {
         AudioFile af;
         std::vector<float> stereo(200);

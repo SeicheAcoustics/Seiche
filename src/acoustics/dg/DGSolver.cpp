@@ -48,6 +48,41 @@ static void finalizeImpulseResponse(DGSolver::Result& r) {
     }
 }
 
+// shortcut: fixed DOF cap, not physical RAM; upgrade to a RAM query if users hit it on big machines
+static constexpr double MAX_DG_DOFS = 10e6;
+static constexpr double BYTES_PER_DOF = 400.0; // rough: mesh geometry + solver fields/scratch
+
+// Estimate the mesh size from the model bounding box before meshing; empty string if it fits.
+static QString checkProblemSize(const std::vector<Vec3f>& modelVertices, double h,
+                                const DGParams& params, int dim)
+{
+    if (modelVertices.empty()) return {};
+    Vec3f lo = modelVertices[0], hi = modelVertices[0];
+    for (const auto& v : modelVertices) {
+        lo = lo.cwiseMin(v);
+        hi = hi.cwiseMax(v);
+    }
+    Vec3f size = hi - lo;
+    int N = params.polynomialOrder;
+    double elements, Np;
+    if (dim == 2) {
+        elements = double(size.x()) * size.y() / (std::sqrt(3.0) / 4.0 * h * h);
+        Np = (N + 1) * (N + 2) / 2.0;
+    } else {
+        elements = 6.0 * size.x() * size.y() * size.z() / (h * h * h); // buildMesh3D: 6 tets per cube
+        Np = (N + 1) * (N + 2) * (N + 3) / 6.0;
+    }
+    double dofs = elements * Np;
+    if (dofs <= MAX_DG_DOFS) return {};
+
+    double fitFreq = params.maxFrequency * std::pow(MAX_DG_DOFS / dofs, 1.0 / dim);
+    return QString("DG %1D run too large: ~%2M elements, ~%3 GB. "
+                   "Lower max frequency to %4 Hz or less, or lower the polynomial order.")
+        .arg(dim).arg(elements / 1e6, 0, 'f', 1)
+        .arg(dofs * BYTES_PER_DOF / 1e9, 0, 'f', 0)
+        .arg(static_cast<int>(fitFreq));
+}
+
 DGSolver::Result DGSolver::solve(
     const Vec3f& sourcePos,
     const Vec3f& listenerPos,
@@ -81,6 +116,10 @@ DGSolver::Result DGSolver::solve2D(
 
     double h = SOUND_SPEED / (params.maxFrequency * (2.0 * params.polynomialOrder + 1.0)) * 0.8;
     float sliceZ = (sourcePos.z() + listenerPos.z()) * 0.5f;
+
+    Result refused;
+    refused.error = checkProblemSize(modelVertices, h, params, 2);
+    if (!refused.error.isEmpty()) return refused;
 
     if (cache2D_.N != params.polynomialOrder || cache2D_.h != h || cache2D_.sliceZ != sliceZ) {
         if (progressCallback)
@@ -302,6 +341,10 @@ DGSolver::Result DGSolver::solve3D(
     timer.start();
 
     double h = SOUND_SPEED / (params.maxFrequency * (2.0 * params.polynomialOrder + 1.0)) * 0.8;
+
+    Result refused;
+    refused.error = checkProblemSize(modelVertices, h, params, 3);
+    if (!refused.error.isEmpty()) return refused;
 
     if (cache3D_.N != params.polynomialOrder || cache3D_.h != h) {
         if (progressCallback)

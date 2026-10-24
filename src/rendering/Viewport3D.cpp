@@ -27,6 +27,8 @@ Viewport3D::Viewport3D(QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
     setMinimumSize(200, 200);
     setAcceptDrops(true);
+    moveTimer_.setInterval(16);
+    connect(&moveTimer_, &QTimer::timeout, this, &Viewport3D::stepKeyMovement);
     applyDisplaySettings();
 }
 
@@ -210,6 +212,12 @@ void Viewport3D::selectPoint(int index) {
     }
     activePointIndex_ = index;
     emit pointSelected(index);
+    update();
+}
+
+void Viewport3D::resetCamera() {
+    if (!hasModel()) return;
+    camera_.reset(getRealWorldSize());
     update();
 }
 
@@ -1055,21 +1063,68 @@ void Viewport3D::wheelEvent(QWheelEvent* event) {
     QOpenGLWidget::wheelEvent(event);
 }
 
+static bool isMoveKey(int key) {
+    switch (key) {
+    case Qt::Key_W: case Qt::Key_Up:
+    case Qt::Key_S: case Qt::Key_Down:
+    case Qt::Key_A: case Qt::Key_Left:
+    case Qt::Key_D: case Qt::Key_Right:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Viewport3D::stepKeyMovement() {
+    const float dt = moveClock_.restart() / 1000.0f;
+    float right = 0.0f, forward = 0.0f;
+    for (int key : heldMoveKeys_) {
+        switch (key) {
+        case Qt::Key_W: case Qt::Key_Up:    forward += 1.0f; break;
+        case Qt::Key_S: case Qt::Key_Down:  forward -= 1.0f; break;
+        case Qt::Key_A: case Qt::Key_Left:  right -= 1.0f;   break;
+        case Qt::Key_D: case Qt::Key_Right: right += 1.0f;   break;
+        }
+    }
+    const float step = 1.0f * camera_.distance() * dt;  // one camera distance per second
+    camera_.pan(right * step, forward * step);
+    update();
+}
+
+void Viewport3D::keyReleaseEvent(QKeyEvent* event) {
+    if (isMoveKey(event->key()) && !event->isAutoRepeat()) {
+        heldMoveKeys_.erase(event->key());
+        if (heldMoveKeys_.empty()) moveTimer_.stop();
+    }
+    QOpenGLWidget::keyReleaseEvent(event);
+}
+
+void Viewport3D::focusOutEvent(QFocusEvent* event) {
+    // A key released while unfocused never sends a release event here
+    heldMoveKeys_.clear();
+    moveTimer_.stop();
+    QOpenGLWidget::focusOutEvent(event);
+}
+
 void Viewport3D::keyPressEvent(QKeyEvent* event) {
-    const float panStep = 0.05f * camera_.distance();
+    if (isMoveKey(event->key())) {
+        if (!event->isAutoRepeat()) {
+            heldMoveKeys_.insert(event->key());
+            if (!moveTimer_.isActive()) {
+                moveClock_.start();
+                moveTimer_.start();
+            }
+        }
+        QOpenGLWidget::keyPressEvent(event);
+        return;
+    }
     switch (event->key()) {
-    case Qt::Key_W: case Qt::Key_Up:    camera_.pan(0, panStep);  update(); break;
-    case Qt::Key_S: case Qt::Key_Down:  camera_.pan(0, -panStep); update(); break;
-    case Qt::Key_A: case Qt::Key_Left:  camera_.pan(-panStep, 0); update(); break;
-    case Qt::Key_D: case Qt::Key_Right: camera_.pan(panStep, 0);  update(); break;
     case Qt::Key_T:
         transparentMode_ = !transparentMode_;
         update();
         break;
     case Qt::Key_R:
-        surfaceColors_.assign(surfaces_.size(), defaultSurfaceColor_);
-        surfaceTextured_.assign(surfaces_.size(), false);
-        update();
+        resetCamera();
         break;
     case Qt::Key_P:
         if (!placementMode_) {

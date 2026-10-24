@@ -39,6 +39,16 @@ if(NOT Eigen3_FOUND)
     set(EIGEN3_INCLUDE_DIR "${eigen_SOURCE_DIR}")
 endif()
 
+if(APPLE AND NOT DEFINED OpenMP_CXX_FLAGS)
+    # AppleClang ships no libomp; use Homebrew's when installed
+    execute_process(COMMAND brew --prefix libomp OUTPUT_VARIABLE LIBOMP_PREFIX
+                    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(LIBOMP_PREFIX AND EXISTS "${LIBOMP_PREFIX}/lib/libomp.dylib")
+        set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include")
+        set(OpenMP_CXX_LIB_NAMES omp)
+        set(OpenMP_omp_LIBRARY "${LIBOMP_PREFIX}/lib/libomp.dylib")
+    endif()
+endif()
 find_package(OpenMP)
 
 option(SEICHE_ENABLE_GL_COMPUTE "Enable OpenGL 4.3 compute/SSBO backend" ON)
@@ -54,13 +64,7 @@ endif()
 
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
-    pkg_check_modules(SNDFILE sndfile)
     pkg_check_modules(FFTW3 fftw3f)
-endif()
-
-if(NOT SNDFILE_FOUND)
-    find_library(SNDFILE_LIBRARIES NAMES sndfile libsndfile-1)
-    find_path(SNDFILE_INCLUDE_DIRS sndfile.h)
 endif()
 
 if(NOT FFTW3_FOUND)
@@ -194,12 +198,6 @@ target_link_libraries(seiche_core PUBLIC
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(seiche_core PUBLIC OpenMP::OpenMP_CXX)
-endif()
-
-if(SNDFILE_LIBRARIES)
-    target_include_directories(seiche_core PUBLIC ${SNDFILE_INCLUDE_DIRS})
-    target_link_libraries(seiche_core PUBLIC ${SNDFILE_LIBRARIES})
-    target_compile_definitions(seiche_core PUBLIC HAS_SNDFILE)
 endif()
 
 if(FFTW3_LIBRARIES)

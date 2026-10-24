@@ -23,6 +23,7 @@ public:
         std::vector<float> impulseResponse;
         float sampleRate = 0.0f;
         float duration = 0.0f;
+        QString error; // set when the run was refused (e.g. too large)
     };
 
     // Solve for a single source-listener pair.

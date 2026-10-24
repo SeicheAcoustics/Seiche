@@ -6,7 +6,10 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}"
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$env{QT_PREFIX_PATH}"
+      }
     },
     {
       "name": "debug",

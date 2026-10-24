@@ -213,6 +213,8 @@ private slots:
 
         QSignalSpy matSpy(&panel, &LibraryPanel::materialSelected);
         emit tree->itemClicked(leaf, 0);
+        QCOMPARE(matSpy.count(), 0);  // single click only selects; double-click applies
+        emit tree->itemDoubleClicked(leaf, 0);
         QCOMPARE(matSpy.count(), 1);
 
         panel.findChild<QLineEdit*>()->setText("velour");

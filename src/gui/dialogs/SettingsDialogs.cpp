@@ -250,7 +250,7 @@ KeyboardShortcutsDialog::KeyboardShortcutsDialog(QWidget* parent)
         {"Delete Point",         "Delete"},
         {"Placement (off / Source / Listener / off)", "P"},
         {"Toggle Transparency",  "T"},
-        {"Reset Surface Colors", "R"},
+        {"Reset Camera",         "R"},
         {"Clear All Points",     "C"},
         {"Move View",            "W/A/S/D, Arrows"},
         {"Zoom Toward Cursor",   "Mouse Wheel"},

@@ -247,6 +247,8 @@ void SimulationWorker::process() {
                     params_.walls, params_.modelVertices, bvh,
                     dgParams, dgProgress, dgCancel);
 
+                if (isCancelled()) { emit error("Cancelled"); return; } // don't save a partial IR
+                if (!dgResult.error.isEmpty()) { emit error(dgResult.error); return; }
                 if (dgResult.impulseResponse.empty()) {
                     ++pairsDoneDG;
                     continue;

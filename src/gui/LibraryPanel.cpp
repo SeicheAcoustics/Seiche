@@ -89,8 +89,9 @@ void LibraryPanel::setupUI() {
     auto* soundTab    = new QWidget;
     auto* materialTab = new QWidget;
 
-    createSoundTab(soundTab);
+    // Material tab first: the sound tab's startup scan calls applyFilter(), which reads materialTree_.
     createMaterialTab(materialTab);
+    createSoundTab(soundTab);
 
     tabWidget_->addTab(soundTab, "SOUND");
     tabWidget_->addTab(materialTab, "MATERIAL");
@@ -218,13 +219,15 @@ void LibraryPanel::createMaterialTab(QWidget* tab) {
         }
     }
 
-    connect(materialTree_, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem* item) {
+    connect(materialTree_, &QTreeWidget::itemClicked, this, [](QTreeWidgetItem* item) {
+        if (!item->data(0, Qt::UserRole).isValid())
+            item->setExpanded(!item->isExpanded());
+    });
+    connect(materialTree_, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem* item) {
         bool ok = false;
         int idx = item->data(0, Qt::UserRole).toInt(&ok);
         if (ok)
             emit materialSelected(materials_[idx]);
-        else
-            item->setExpanded(!item->isExpanded());
     });
 
     auto* tabLayout = new QVBoxLayout(tab);
