@@ -32,8 +32,8 @@ jobs:
           - name: macOS
             os: macos-latest
             qt-arch: clang_64
-            # Universal app; PkgConfig off so an arm64-only brew sndfile/fftw can't break the x86_64 slice
-            release-args: '"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON'
+            # Universal app; PkgConfig and OpenMP off so an arm64-only brew fftw/libomp can't break the x86_64 slice
+            release-args: '"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON'
 
     steps:
       - uses: actions/checkout@v4

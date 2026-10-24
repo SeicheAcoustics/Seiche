@@ -6,6 +6,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QT_PREFIX_PATH="${QT_PREFIX_PATH:-}"
 CMAKE_GENERATOR="${CMAKE_GENERATOR:-Ninja}"
 
+for arg in "$@"; do
+  case "${arg}" in
+    --clean) rm -rf "${REPO_ROOT}/build" ;;
+    *) echo "Usage: $0 [--clean]" >&2; exit 1 ;;
+  esac
+done
+
 # Auto-detect Qt prefix from macdeployqt if not explicitly set
 if [[ -z "${QT_PREFIX_PATH}" ]]; then
   if command -v macdeployqt >/dev/null 2>&1; then

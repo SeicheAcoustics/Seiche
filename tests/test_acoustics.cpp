@@ -11,6 +11,7 @@
 #include "acoustics/dg/DGBasis3D.h"
 #include "acoustics/dg/DGMesh2D.h"
 #include "acoustics/dg/DGAcoustics2D.h"
+#include "acoustics/dg/DGSolver.h"
 
 using namespace prs;
 
@@ -267,6 +268,24 @@ private slots:
             peak = (std::max)(peak, std::abs(v));
         }
         QVERIFY(peak > 0.0f);
+    }
+
+    // Default settings in a 10x10x3 m room would need ~100+ GB; the solver must refuse before meshing.
+    void testDGRefusesOversizedRun() {
+        dg::DGParams params;
+        params.method = dg::DGMethod::DG_3D;
+        params.polynomialOrder = 3;
+        params.maxFrequency = 1000.0;
+        std::vector<Vec3f> verts = {Vec3f(0, 0, 0), Vec3f(10, 10, 3)};
+
+        dg::DGSolver solver;
+        Bvh bvh;
+        QElapsedTimer timer;
+        timer.start();
+        auto result = solver.solve(Vec3f(2, 2, 1), Vec3f(8, 8, 1), {}, verts, bvh, params);
+        QVERIFY(result.impulseResponse.empty());
+        QVERIFY(result.error.contains("too large"));
+        QVERIFY(timer.elapsed() < 1000);
     }
 };
 

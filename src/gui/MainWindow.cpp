@@ -166,6 +166,7 @@ void MainWindow::setupMenus() {
 
     auto* viewMenu = menuBar()->addMenu("&View");
     actSimQueue_   = viewMenu->addAction("Simulation &Queue", this, &MainWindow::onShowSimQueue);
+    viewMenu->addAction("&Reset Camera", this, [this]() { viewport_->resetCamera(); });
 
     settingsMenu_ = menuBar()->addMenu("&Settings");
     actPreferences_ = settingsMenu_->addAction("&Preferences...", this, [this]() {

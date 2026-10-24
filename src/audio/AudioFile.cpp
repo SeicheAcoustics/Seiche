@@ -1,83 +1,23 @@
 #include "AudioFile.h"
 
-#include <QFile>
+#include <QAudioDecoder>
 #include <QDataStream>
+#include <QEventLoop>
+#include <QFile>
+#include <QUrl>
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
 #include <cmath>
 
-#ifdef HAS_SNDFILE
-#include <sndfile.h>
-#endif
-
 namespace prs {
 
-#ifdef HAS_SNDFILE
-
 bool AudioFile::load(const QString& filepath) {
-    SF_INFO sfinfo;
-    std::memset(&sfinfo, 0, sizeof(sfinfo));
-
-    SNDFILE* file = sf_open(filepath.toStdString().c_str(), SFM_READ, &sfinfo);
-    if (!file) return false;
-
-    sampleRate_ = sfinfo.samplerate;
-    channels_   = sfinfo.channels;
-
-    std::vector<float> raw(sfinfo.frames * sfinfo.channels);
-    sf_readf_float(file, raw.data(), sfinfo.frames);
-    sf_close(file);
-
-    samples_ = std::move(raw);
-    if (channels_ > 1) convertToMono();
-    return true;
+    return loadWav(filepath) || decodeWithQt(filepath);
 }
 
-bool AudioFile::save(const QString& filepath, int sampleRate) const {
-    SF_INFO sfinfo;
-    std::memset(&sfinfo, 0, sizeof(sfinfo));
-    sfinfo.samplerate = sampleRate;
-    sfinfo.channels   = 1;
-    sfinfo.format     = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
-
-    SNDFILE* file = sf_open(filepath.toStdString().c_str(), SFM_WRITE, &sfinfo);
-    if (!file) return false;
-
-    sf_writef_float(file, samples_.data(), static_cast<sf_count_t>(samples_.size()));
-    sf_close(file);
-    return true;
-}
-
-bool AudioFile::saveStereo(const QString& filepath, int sampleRate,
-                          const std::vector<float>& left,
-                          const std::vector<float>& right)
-{
-    if (left.size() != right.size() || left.empty()) return false;
-    SF_INFO sfinfo;
-    std::memset(&sfinfo, 0, sizeof(sfinfo));
-    sfinfo.samplerate = sampleRate;
-    sfinfo.channels   = 2;
-    sfinfo.format     = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
-
-    SNDFILE* file = sf_open(filepath.toStdString().c_str(), SFM_WRITE, &sfinfo);
-    if (!file) return false;
-
-    std::vector<float> interleaved(left.size() * 2);
-    for (size_t i = 0; i < left.size(); ++i) {
-        interleaved[i * 2]     = left[i];
-        interleaved[i * 2 + 1] = right[i];
-    }
-    sf_writef_float(file, interleaved.data(), static_cast<sf_count_t>(left.size()));
-    sf_close(file);
-    return true;
-}
-
-#else
-
-// Minimal WAV reader/writer when libsndfile is not available
-
-bool AudioFile::load(const QString& filepath) {
+// Fast path for plain PCM/float WAV; no plugin needed.
+bool AudioFile::loadWav(const QString& filepath) {
     QFile file(filepath);
     if (!file.open(QIODevice::ReadOnly)) return false;
 
@@ -93,7 +33,7 @@ bool AudioFile::load(const QString& filepath) {
     if (std::memcmp(ptr + 8, "WAVE", 4) != 0) return false;
 
     // Find fmt chunk
-    int pos = 12;
+    qint64 pos = 12;
     int16_t audioFormat = 0;
     int16_t numChannels = 0;
     int32_t sr = 0;
@@ -102,7 +42,7 @@ bool AudioFile::load(const QString& filepath) {
     while (pos < data.size() - 8) {
         char chunkId[5] = {};
         std::memcpy(chunkId, ptr + pos, 4);
-        int32_t chunkSize = *reinterpret_cast<const int32_t*>(ptr + pos + 4);
+        uint32_t chunkSize = *reinterpret_cast<const uint32_t*>(ptr + pos + 4);
 
         if (std::strcmp(chunkId, "fmt ") == 0) {
             audioFormat   = *reinterpret_cast<const int16_t*>(ptr + pos + 8);
@@ -113,8 +53,11 @@ bool AudioFile::load(const QString& filepath) {
             sampleRate_ = sr;
             channels_   = numChannels;
 
+            // Streamed WAVs (e.g. ffmpeg piped output) write 0xFFFFFFFF; use the bytes actually present.
+            qint64 dataBytes = std::min<qint64>(chunkSize, data.size() - pos - 8);
             int bytesPerSample = bitsPerSample / 8;
-            int totalSamples   = chunkSize / bytesPerSample;
+            if (bytesPerSample == 0) return false;
+            qint64 totalSamples = dataBytes / bytesPerSample;
             samples_.resize(totalSamples);
 
             const char* samplePtr = ptr + pos + 8;
@@ -141,11 +84,44 @@ bool AudioFile::load(const QString& filepath) {
             return true;
         }
 
-        pos += 8 + chunkSize;
+        pos += 8 + qint64(chunkSize);
         if (chunkSize % 2 != 0) ++pos;
     }
 
     return false;
+}
+
+// MP3/FLAC/OGG and WAV encodings loadWav() rejects (e.g. 24-bit) go through Qt's FFmpeg backend.
+bool AudioFile::decodeWithQt(const QString& filepath) {
+    samples_.clear();
+    QAudioDecoder decoder;
+    if (!decoder.isSupported()) return false;
+
+    bool ok = true, done = false;
+    QEventLoop loop;
+    QObject::connect(&decoder, &QAudioDecoder::bufferReady, [&] {
+        const QAudioBuffer buf = decoder.read();
+        const QAudioFormat fmt = buf.format();
+        sampleRate_ = fmt.sampleRate();
+        channels_   = fmt.channelCount();
+        const char* p = buf.constData<char>();
+        for (qsizetype i = 0; i < buf.sampleCount(); ++i)
+            samples_.push_back(fmt.normalizedSampleValue(p + i * fmt.bytesPerSample()));
+    });
+    QObject::connect(&decoder, &QAudioDecoder::finished, [&] { done = true; loop.quit(); });
+    QObject::connect(&decoder, qOverload<QAudioDecoder::Error>(&QAudioDecoder::error), [&] {
+        ok = false;
+        done = true;
+        loop.quit();
+    });
+    decoder.setSource(QUrl::fromLocalFile(filepath));
+    decoder.start();
+    // A bad source can report its error synchronously, before the loop would start
+    if (!done) loop.exec();
+
+    if (!ok || samples_.empty()) return false;
+    if (channels_ > 1) convertToMono();
+    return true;
 }
 
 // 16-bit PCM WAV; `interleaved` holds channels * frames samples in [-1, 1].
@@ -205,8 +181,6 @@ bool AudioFile::saveStereo(const QString& filepath, int sampleRate,
     }
     return writeWav16(filepath, sampleRate, 2, interleaved);
 }
-
-#endif // HAS_SNDFILE
 
 void AudioFile::convertToMono() {
     if (channels_ <= 1) return;

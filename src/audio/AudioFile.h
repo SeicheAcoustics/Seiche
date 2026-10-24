@@ -26,6 +26,9 @@ public:
     void applyVolume(float volume);
 
 private:
+    bool loadWav(const QString& filepath);
+    bool decodeWithQt(const QString& filepath);
+
     std::vector<float> samples_;
     int sampleRate_ = 44100;
     int channels_   = 1;

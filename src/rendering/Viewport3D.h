@@ -13,6 +13,8 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
+#include <QTimer>
+#include <QElapsedTimer>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QImage>
@@ -53,6 +55,7 @@ public:
     void deselectPoint();
     void clearFullSelection();
     void clearPlacedPoints();
+    void resetCamera();
     void restorePlacedPoints(const std::vector<PlacedPoint>& points);
     void selectPoint(int index);
     void notifyPlacedPointsChanged();
@@ -139,6 +142,8 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
+    void focusOutEvent(QFocusEvent* event) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dragMoveEvent(QDragMoveEvent* event) override;
     void dropEvent(QDropEvent* event) override;
@@ -146,6 +151,7 @@ protected:
 private:
     void autoNormalizeScale();
     void updateProjection();
+    void stepKeyMovement();
 
     // Drawing helpers
     void drawMeasurementGrid();
@@ -166,6 +172,11 @@ private:
     // Data
     MeshData mesh_;
     Camera camera_;
+
+    // Held WASD/arrow keys pan every frame, not per OS key repeat
+    std::set<int> heldMoveKeys_;
+    QTimer moveTimer_;
+    QElapsedTimer moveClock_;
     float scaleFactor_ = 1.0f;
     Vec3f modelCenter_ = Vec3f::Zero();
 
