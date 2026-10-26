@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <array>
 
 namespace prs {
 namespace AcousticMetrics {
@@ -91,6 +92,23 @@ RTResult computeRT(const std::vector<float>& rir, int sampleRate) {
     return result;
 }
 
+// IEC 61672 frequency weightings (dB) at the octave-band centres in FREQ_BANDS
+using BandWeightsDb = std::array<double, NUM_FREQ_BANDS>;
+static constexpr BandWeightsDb A_WEIGHTING_DB = {-16.1, -8.6, -3.2, 0.0,  1.2,  1.0};
+static constexpr BandWeightsDb B_WEIGHTING_DB = { -4.2, -1.3, -0.3, 0.0, -0.1, -0.7};
+static constexpr BandWeightsDb C_WEIGHTING_DB = { -0.2,  0.0,  0.0, 0.0, -0.2, -0.8};
+
+// Band-mean of weighted energy, matching the band-average convention of the unweighted levels
+static float weightedLevelDb(const std::array<double, NUM_FREQ_BANDS>& energyPerBand,
+                             const BandWeightsDb& weightsDb, double referenceEnergy) {
+    double weightedEnergy = 0.0;
+    for (int b = 0; b < NUM_FREQ_BANDS; ++b)
+        weightedEnergy += energyPerBand[b] * std::pow(10.0, weightsDb[b] / 10.0);
+    weightedEnergy /= NUM_FREQ_BANDS;
+    return (weightedEnergy > referenceEnergy)
+        ? static_cast<float>(10.0 * std::log10(weightedEnergy / referenceEnergy)) : 0.0f;
+}
+
 SPLResult computeSPL(
     float sourceVolumeLinear,
     const std::vector<ImageSource>& imageSources,
@@ -103,11 +121,15 @@ SPLResult computeSPL(
 
     double directEnergy = 0.0;
     double reflectedEnergy = 0.0;
+    std::array<double, NUM_FREQ_BANDS> imageEnergyPerBand{};
+    std::array<double, NUM_FREQ_BANDS> rayEnergyPerBand{};
 
     for (const auto& is : imageSources) {
         double bandAvg = 0.0;
-        for (int b = 0; b < NUM_FREQ_BANDS; ++b)
+        for (int b = 0; b < NUM_FREQ_BANDS; ++b) {
             bandAvg += is.attenuation[b];
+            imageEnergyPerBand[b] += static_cast<double>(is.attenuation[b]) * is.attenuation[b];
+        }
         bandAvg /= NUM_FREQ_BANDS;
         double e = bandAvg * bandAvg;
         if (is.order == 0)
@@ -119,13 +141,15 @@ SPLResult computeSPL(
     double rayEnergy = 0.0;
     for (const auto& rc : rayContributions) {
         double bandAvg = 0.0;
-        for (int b = 0; b < NUM_FREQ_BANDS; ++b)
+        for (int b = 0; b < NUM_FREQ_BANDS; ++b) {
             bandAvg += rc.energy[b];
+            rayEnergyPerBand[b] += static_cast<double>(rc.energy[b]) * rc.energy[b];
+        }
         bandAvg /= NUM_FREQ_BANDS;
         rayEnergy += bandAvg * bandAvg;
     }
-    if (numRaysEmitted > 0)
-        rayEnergy *= (4.0 * M_PI) / numRaysEmitted;
+    const double rayScale = (numRaysEmitted > 0) ? (4.0 * M_PI) / numRaysEmitted : 1.0;
+    rayEnergy *= rayScale;
 
     reflectedEnergy += rayEnergy;
 
@@ -135,6 +159,10 @@ SPLResult computeSPL(
 
     double totalEnergy = directEnergy + reflectedEnergy;
 
+    std::array<double, NUM_FREQ_BANDS> totalEnergyPerBand;
+    for (int b = 0; b < NUM_FREQ_BANDS; ++b)
+        totalEnergyPerBand[b] = (imageEnergyPerBand[b] + rayEnergyPerBand[b] * rayScale) * volSq;
+
     // Convert to dB (reference: energy of 1.0 at 1m from a unit source)
     constexpr double REF_ENERGY = 1e-12;
     result.directSPL    = (directEnergy > REF_ENERGY)
@@ -143,6 +171,9 @@ SPLResult computeSPL(
         ? static_cast<float>(10.0 * std::log10(reflectedEnergy / REF_ENERGY)) : 0.0f;
     result.totalSPL     = (totalEnergy > REF_ENERGY)
         ? static_cast<float>(10.0 * std::log10(totalEnergy / REF_ENERGY)) : 0.0f;
+    result.totalSPL_A_weighted = weightedLevelDb(totalEnergyPerBand, A_WEIGHTING_DB, REF_ENERGY);
+    result.totalSPL_B_weighted = weightedLevelDb(totalEnergyPerBand, B_WEIGHTING_DB, REF_ENERGY);
+    result.totalSPL_C_weighted = weightedLevelDb(totalEnergyPerBand, C_WEIGHTING_DB, REF_ENERGY);
     result.valid = true;
     return result;
 }

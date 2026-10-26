@@ -106,7 +106,8 @@ const QHash<QString, QString>& chineseDictionary() {
         {"Playback", "播放"}, {"Stop", "停止"}, {"Play A", "播放 A"},
         {"Play B", "播放 B"}, {"Toggle A/B", "切换 A/B"},
         {"Simulation Output Files", "仿真输出文件"}, {"Acoustic Metrics", "声学指标"},
-        {"Total (dB)", "总声压级 (dB)"}, {"Direct (dB)", "直达声 (dB)"},
+        {"Total (dB)", "总声压级 (dB)"},
+        {"Total dB(A)", "总声压级 dB(A)"}, {"Total dB(B)", "总声压级 dB(B)"}, {"Total dB(C)", "总声压级 dB(C)"}, {"Direct (dB)", "直达声 (dB)"},
         {"Reflected (dB)", "反射声 (dB)"}, {"Stopped", "已停止"}
     };
     return dictionary;

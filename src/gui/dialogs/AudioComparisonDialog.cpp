@@ -163,11 +163,12 @@ void AudioComparisonDialog::loadMetrics(const QString& dir) {
     if (pairs.isEmpty())
         return;
 
-    metricsTable_->setColumnCount(8);
+    metricsTable_->setColumnCount(11);
     metricsTable_->setHorizontalHeaderLabels({
         "Source", "Listener",
         "T20 (s)", "T30 (s)", "EDT (s)",
-        "Direct (dB)", "Reflected (dB)", "Total (dB)"
+        "Direct (dB)", "Reflected (dB)", "Total (dB)",
+        "Total dB(A)", "Total dB(B)", "Total dB(C)"
     });
     metricsTable_->setRowCount(pairs.size());
 
@@ -191,6 +192,9 @@ void AudioComparisonDialog::loadMetrics(const QString& dir) {
         metricsTable_->setItem(row, 5, new QTableWidgetItem(fmtVal(spl, "direct_dB")));
         metricsTable_->setItem(row, 6, new QTableWidgetItem(fmtVal(spl, "reflected_dB")));
         metricsTable_->setItem(row, 7, new QTableWidgetItem(fmtVal(spl, "total_dB")));
+        metricsTable_->setItem(row, 8, new QTableWidgetItem(fmtVal(spl, "total_dBA")));
+        metricsTable_->setItem(row, 9, new QTableWidgetItem(fmtVal(spl, "total_dBB")));
+        metricsTable_->setItem(row, 10, new QTableWidgetItem(fmtVal(spl, "total_dBC")));
     }
 
     metricsTable_->resizeColumnsToContents();

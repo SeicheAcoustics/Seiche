@@ -212,6 +212,21 @@ private slots:
         QVERIFY(spl.totalSPL >= spl.directSPL);
     }
 
+    // A flat spectrum loses energy under each weighting; A cuts the most, C the least.
+    void testComputeSPLFrequencyWeighting() {
+        ImageSource direct;
+        direct.attenuation = {0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
+        direct.order = 0;
+
+        auto spl = AcousticMetrics::computeSPL(1.0f, {direct}, {}, 1000);
+        QVERIFY(spl.valid);
+        QVERIFY(spl.totalSPL_C_weighted > spl.totalSPL_B_weighted);
+        QVERIFY(spl.totalSPL_B_weighted > spl.totalSPL_A_weighted);
+        QVERIFY(spl.totalSPL_C_weighted < spl.totalSPL);
+        // Band-mean of 10^(A/10) over 125-4000 Hz is about -1.53 dB
+        QVERIFY(std::abs(spl.totalSPL - spl.totalSPL_A_weighted - 1.53f) < 0.05f);
+    }
+
     void testEmptyMetrics() {
         auto rt = AcousticMetrics::computeRT({}, 44100);
         QVERIFY(!rt.valid);

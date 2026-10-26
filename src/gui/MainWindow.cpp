@@ -808,13 +808,14 @@ void MainWindow::onRender() {
 
     SimulationWorker::Params params;
     params.scene = simScene;
-    params.walls = viewport_->getWallsForAcoustic();
+    params.walls = viewport_->getWallsForAcoustic(
+        settings.value("sim/absorption", DEFAULT_ENERGY_ABSORPTION).toFloat(),
+        settings.value("sim/scattering", DEFAULT_SCATTERING).toFloat());
     params.roomCenter = viewport_->getScaledRoomCenter();
     params.modelVertices = viewport_->getScaledModelVertices();
     params.sampleRate = settings.value("audio/sampleRate", DEFAULT_SAMPLE_RATE).toInt();
     params.maxOrder = settings.value("sim/maxOrder", DEFAULT_MAX_ORDER).toInt();
     params.nRays = settings.value("sim/numRays", DEFAULT_N_RAYS).toInt();
-    params.scattering = settings.value("sim/scattering", DEFAULT_SCATTERING).toFloat();
     params.airAbsorption = settings.value("sim/airAbsorption", true).toBool();
     params.selectedListenerIndices = selectedListeners;
     params.method = renderDlg.selectedMethod();

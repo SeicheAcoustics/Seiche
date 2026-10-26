@@ -382,6 +382,9 @@ void SimulationWorker::process() {
                 spl["direct_dB"]    = static_cast<double>(splResult.directSPL);
                 spl["reflected_dB"] = static_cast<double>(splResult.reflectedSPL);
                 spl["total_dB"]     = static_cast<double>(splResult.totalSPL);
+                spl["total_dBA"]    = static_cast<double>(splResult.totalSPL_A_weighted);
+                spl["total_dBB"]    = static_cast<double>(splResult.totalSPL_B_weighted);
+                spl["total_dBC"]    = static_cast<double>(splResult.totalSPL_C_weighted);
                 pairMetrics["sound_pressure_level"] = spl;
             }
             metricsArray.append(pairMetrics);

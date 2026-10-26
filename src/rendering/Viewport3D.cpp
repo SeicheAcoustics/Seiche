@@ -27,8 +27,10 @@ Viewport3D::Viewport3D(QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
     setMinimumSize(200, 200);
     setAcceptDrops(true);
-    moveTimer_.setInterval(16);
-    connect(&moveTimer_, &QTimer::timeout, this, &Viewport3D::stepKeyMovement);
+    // Keep repainting (vsync-paced) while a move key is held
+    connect(this, &QOpenGLWidget::frameSwapped, this, [this]() {
+        if (!heldMoveKeys_.empty()) update();
+    });
     applyDisplaySettings();
 }
 
@@ -446,7 +448,8 @@ Viewport3D::getSourcesAndListeners(const std::string& audioFile) const {
     return {sources, listeners};
 }
 
-std::vector<Viewport3D::WallInfo> Viewport3D::getWallsForAcoustic() const {
+std::vector<Viewport3D::WallInfo> Viewport3D::getWallsForAcoustic(float unassignedSurfaceAbsorption,
+                                                                   float unassignedSurfaceScattering) const {
     std::vector<WallInfo> walls;
     for (int si = 0; si < static_cast<int>(surfaces_.size()); ++si) {
         WallInfo wi;
@@ -454,6 +457,9 @@ std::vector<Viewport3D::WallInfo> Viewport3D::getWallsForAcoustic() const {
         if (si < static_cast<int>(surfaceMaterials_.size()) && surfaceMaterials_[si].has_value()) {
             wi.absorption = surfaceMaterials_[si]->absorption;
             wi.scattering = surfaceMaterials_[si]->scattering;
+        } else {
+            wi.absorption.fill(unassignedSurfaceAbsorption);
+            wi.scattering = unassignedSurfaceScattering;
         }
         walls.push_back(std::move(wi));
     }
@@ -489,6 +495,8 @@ void Viewport3D::resizeGL(int w, int h) {
 }
 
 void Viewport3D::paintGL() {
+    if (!heldMoveKeys_.empty()) stepKeyMovement();
+
     glUseProgram(0); // the grid legend's QPainter may leave a shader bound; fixed-function below
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -1076,7 +1084,8 @@ static bool isMoveKey(int key) {
 }
 
 void Viewport3D::stepKeyMovement() {
-    const float dt = moveClock_.restart() / 1000.0f;
+    // Clamp so a stalled frame doesn't make the camera jump
+    const float dt = std::min(moveClock_.restart() / 1000.0f, 0.1f);
     float right = 0.0f, forward = 0.0f;
     for (int key : heldMoveKeys_) {
         switch (key) {
@@ -1088,13 +1097,11 @@ void Viewport3D::stepKeyMovement() {
     }
     const float step = 1.0f * camera_.distance() * dt;  // one camera distance per second
     camera_.pan(right * step, forward * step);
-    update();
 }
 
 void Viewport3D::keyReleaseEvent(QKeyEvent* event) {
     if (isMoveKey(event->key()) && !event->isAutoRepeat()) {
         heldMoveKeys_.erase(event->key());
-        if (heldMoveKeys_.empty()) moveTimer_.stop();
     }
     QOpenGLWidget::keyReleaseEvent(event);
 }
@@ -1102,18 +1109,17 @@ void Viewport3D::keyReleaseEvent(QKeyEvent* event) {
 void Viewport3D::focusOutEvent(QFocusEvent* event) {
     // A key released while unfocused never sends a release event here
     heldMoveKeys_.clear();
-    moveTimer_.stop();
     QOpenGLWidget::focusOutEvent(event);
 }
 
 void Viewport3D::keyPressEvent(QKeyEvent* event) {
     if (isMoveKey(event->key())) {
         if (!event->isAutoRepeat()) {
-            heldMoveKeys_.insert(event->key());
-            if (!moveTimer_.isActive()) {
+            if (heldMoveKeys_.empty()) {
                 moveClock_.start();
-                moveTimer_.start();
+                update();
             }
+            heldMoveKeys_.insert(event->key());
         }
         QOpenGLWidget::keyPressEvent(event);
         return;

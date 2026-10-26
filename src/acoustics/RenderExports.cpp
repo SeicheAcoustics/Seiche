@@ -61,7 +61,7 @@ bool saveMetricsCsv(const QString& path, const QJsonArray& pairs) {
         return false;
 
     QByteArray contents;
-    contents += "source,listener,t20,t30,edt,direct_dB,reflected_dB,total_dB\n";
+    contents += "source,listener,t20,t30,edt,direct_dB,reflected_dB,total_dB,total_dBA,total_dBB,total_dBC\n";
     for (const auto& pairVal : pairs) {
         if (!pairVal.isObject())
             continue;
@@ -74,6 +74,9 @@ bool saveMetricsCsv(const QString& path, const QJsonArray& pairs) {
         const QString direct = metricString(pair, "sound_pressure_level", "direct_dB");
         const QString reflected = metricString(pair, "sound_pressure_level", "reflected_dB");
         const QString total = metricString(pair, "sound_pressure_level", "total_dB");
+        const QString totalA = metricString(pair, "sound_pressure_level", "total_dBA");
+        const QString totalB = metricString(pair, "sound_pressure_level", "total_dBB");
+        const QString totalC = metricString(pair, "sound_pressure_level", "total_dBC");
 
         contents += source.toUtf8();
         contents += ',';
@@ -90,6 +93,12 @@ bool saveMetricsCsv(const QString& path, const QJsonArray& pairs) {
         contents += reflected.toUtf8();
         contents += ',';
         contents += total.toUtf8();
+        contents += ',';
+        contents += totalA.toUtf8();
+        contents += ',';
+        contents += totalB.toUtf8();
+        contents += ',';
+        contents += totalC.toUtf8();
         contents += '\n';
     }
 

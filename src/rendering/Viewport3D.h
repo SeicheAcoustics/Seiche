@@ -13,7 +13,6 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
-#include <QTimer>
 #include <QElapsedTimer>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -89,7 +88,9 @@ public:
         std::array<float, NUM_FREQ_BANDS> absorption = {0.2f, 0.2f, 0.2f, 0.2f, 0.2f, 0.2f};
         float scattering = DEFAULT_SCATTERING;
     };
-    std::vector<WallInfo> getWallsForAcoustic() const;
+    // Surfaces with no material assigned get the given absorption (all bands) and scattering
+    std::vector<WallInfo> getWallsForAcoustic(float unassignedSurfaceAbsorption,
+                                              float unassignedSurfaceScattering) const;
     Vec3f getScaledRoomCenter() const;
     std::vector<Vec3f> getScaledModelVertices() const;
 
@@ -173,9 +174,9 @@ private:
     MeshData mesh_;
     Camera camera_;
 
-    // Held WASD/arrow keys pan every frame, not per OS key repeat
+    // Held WASD/arrow keys pan once per rendered frame (in paintGL), not per OS key repeat,
+    // so panning stays in step with mouse-driven repaints
     std::set<int> heldMoveKeys_;
-    QTimer moveTimer_;
     QElapsedTimer moveClock_;
     float scaleFactor_ = 1.0f;
     Vec3f modelCenter_ = Vec3f::Zero();

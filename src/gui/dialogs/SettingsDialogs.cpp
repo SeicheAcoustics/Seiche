@@ -177,28 +177,37 @@ SimulationSettingsDialog::SimulationSettingsDialog(QWidget* parent)
     maxOrder_ = new QSpinBox;
     maxOrder_->setRange(1, 10);
     maxOrder_->setValue(s.value("sim/maxOrder", 3).toInt());
+    maxOrder_->setToolTip("Highest reflection order the image-source method computes exactly for early reflections.\n"
+                          "Higher = more accurate early sound, but much slower. Ray-tracing method only.");
     form->addRow("Max ISM Order:", maxOrder_);
 
     numRays_ = new QSpinBox;
     numRays_->setRange(1000, 100000);
     numRays_->setSingleStep(1000);
     numRays_->setValue(s.value("sim/numRays", 10000).toInt());
+    numRays_->setToolTip("Rays traced per source and listener ear for the late reverberation tail.\n"
+                         "More rays = smoother, more accurate tail, but slower.");
     form->addRow("Number of Rays:", numRays_);
 
     absorption_ = new QDoubleSpinBox;
     absorption_->setRange(0.0, 1.0);
     absorption_->setSingleStep(0.05);
     absorption_->setValue(s.value("sim/absorption", 0.2).toDouble());
+    absorption_->setToolTip("Absorption coefficient applied on all frequency bands to surfaces with no material assigned.\n"
+                            "0 = fully reflective, 1 = fully absorbing.");
     form->addRow("Default Absorption:", absorption_);
 
     scattering_ = new QDoubleSpinBox;
     scattering_->setRange(0.0, 1.0);
     scattering_->setSingleStep(0.05);
     scattering_->setValue(s.value("sim/scattering", 0.1).toDouble());
+    scattering_->setToolTip("Fraction of reflected energy scattered diffusely by surfaces with no material assigned.\n"
+                            "0 = mirror-like reflection, 1 = fully diffuse.");
     form->addRow("Default Scattering:", scattering_);
 
     airAbsorption_ = new QCheckBox("Enable air absorption");
     airAbsorption_->setChecked(s.value("sim/airAbsorption", true).toBool());
+    airAbsorption_->setToolTip("Attenuate high frequencies with distance traveled through air (applied to traced rays).");
     form->addRow(airAbsorption_);
 
     layout->addLayout(form);

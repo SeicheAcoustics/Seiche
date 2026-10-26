@@ -19,6 +19,9 @@ struct SPLResult {
     float directSPL    = 0.0f;  // dB re: reference
     float totalSPL     = 0.0f;  // dB re: reference (direct + reflected)
     float reflectedSPL = 0.0f;  // dB re: reference (reflected only)
+    float totalSPL_A_weighted = 0.0f;  // dB(A) re: reference (direct + reflected)
+    float totalSPL_B_weighted = 0.0f;  // dB(B)
+    float totalSPL_C_weighted = 0.0f;  // dB(C)
     bool  valid        = false;
 };
 
